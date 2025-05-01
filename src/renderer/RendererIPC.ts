@@ -1,8 +1,16 @@
-import { ipcRenderer, IpcRendererEvent } from "electron"
-import { deserializeError, serializeError } from "serialize-error"
 import { MainToRendererIPC, RendererToMainIPC } from "../IPC"
 import { createProxy } from "../shared/proxyHelpers"
 import { Answerer, Asyncify, Caller } from "../shared/typeHelpers"
+
+// Define the window interface to access the electronAPI if not defined already
+declare global {
+	interface Window {
+		electronAPI: {
+			callMain: <T extends string>(channel: T, ...args: any[]) => Promise<any>;
+			answerMain: <T extends string>(channel: T, callback: (...args: any[]) => any) => () => void;
+		}
+	}
+}
 
 type CallMain = Caller<RendererToMainIPC>
 
@@ -20,45 +28,12 @@ function callMainFn<T extends keyof RendererToMainIPC>(
 	channel: T,
 	...args: Parameters<RendererToMainIPC[T]>
 ): ReturnType<Asyncify<RendererToMainIPC[T]>> {
-	const promise = new Promise((resolve, reject) => {
-		const responseChannel = `${channel}-${Date.now()}-${Math.random()}`
-
-		const handler = (
-			event: IpcRendererEvent,
-			result: { data: any; error: any }
-		) => {
-			ipcRenderer.off(responseChannel, handler)
-			if (result.error) {
-				reject(deserializeError(result.error))
-			} else {
-				resolve(result.data)
-			}
-		}
-		ipcRenderer.on(responseChannel, handler)
-		ipcRenderer.send(channel as string, responseChannel, ...args)
-	})
-
-	return promise as any
+	return window.electronAPI.callMain(channel as string, ...args) as any;
 }
 
 function answerMainFn<T extends keyof MainToRendererIPC>(
 	channel: T,
 	fn: MainToRendererIPC[T]
 ) {
-	const handler = async (
-		event: IpcRendererEvent,
-		responseChannel: string,
-		...args: Array<any>
-	) => {
-		try {
-			const result = await (fn as any)(...args)
-			ipcRenderer.send(responseChannel, { data: result })
-		} catch (error) {
-			ipcRenderer.send(responseChannel, { error: serializeError(error) })
-		}
-	}
-	ipcRenderer.on(channel as string, handler)
-	return () => {
-		ipcRenderer.off(channel as string, handler)
-	}
+	return window.electronAPI.answerMain(channel as string, fn as any);
 }

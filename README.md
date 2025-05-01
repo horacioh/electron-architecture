@@ -7,6 +7,54 @@ This project is a boilerplate electron app with a thoughtfully designed architec
 3. Electron IPC uses a Proxy enabling "Rename Symbol" and "Find All References" in VSCode.
 4. A TestHarness for end-to-end tests with the ability to call into the main and renderer process and make assertions about the main and renderer process states.
 
+## Electron Version
+
+This project has been updated from Electron 13.1.7 to Electron 36.0.1, which includes:
+
+- Enhanced security configurations using modern Electron security best practices
+- Context isolation and secure IPC communication
+- Content Security Policy implementation
+- Protection against unauthorized navigation
+- Modern ESLint configuration with flat config format (ESLint 9)
+- Updated dependencies to latest versions
+
+## Features
+
+- Windows management
+- IPC communication architecture
+- Plugin-based architecture
+- State machine for application state management
+- Renderer/main process separation with clean architecture
+
+## Development
+
+### Prerequisites
+
+- Node.js 18.18.0 or newer
+
+### Installation
+
+```bash
+npm install
+```
+
+### Running
+
+```bash
+npm run build
+npm start
+```
+
+### Testing
+
+```bash
+npm test
+```
+
+## License
+
+CC0 1.0 (Public Domain)
+
 ## Architecture
 
 ### What is a StateMachine?

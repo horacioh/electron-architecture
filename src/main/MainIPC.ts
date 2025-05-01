@@ -1,5 +1,4 @@
-import { BrowserWindow, ipcMain, IpcRendererEvent } from "electron"
-import { IpcMainEvent } from "electron/main"
+import { BrowserWindow, ipcMain } from "electron"
 import { deserializeError, serializeError } from "serialize-error"
 import { MainToRendererIPC, RendererToMainIPC } from "../IPC"
 import { createProxy } from "../shared/proxyHelpers"
@@ -35,25 +34,20 @@ function answerRendererFn<T extends keyof RendererToMainIPC>(
 		...args: Parameters<RendererToMainIPC[T]>
 	) => ReturnType<RendererToMainIPC[T]>
 ) {
-	const handler = async (
-		event: IpcRendererEvent,
-		ipcChannel: string,
-		responseChannel: string,
-		...args: Array<any>
-	) => {
-		if (ipcChannel !== channel) return
+	const handler = async (event: Electron.IpcMainEvent, responseChannel: string, ...args: Array<any>) => {
+		if (event.sender !== browserWindow.webContents) return;
 		try {
 			const result = await (fn as any)(...args)
-			browserWindow.webContents.send(responseChannel, { data: result })
+			event.sender.send(responseChannel, { data: result })
 		} catch (error) {
-			browserWindow.webContents.send(responseChannel, {
+			event.sender.send(responseChannel, {
 				error: serializeError(error),
 			})
 		}
 	}
-	browserWindow.webContents.on("ipc-message", handler)
+	ipcMain.on(channel as string, handler)
 	return () => {
-		browserWindow.webContents.off("ipc-message", handler)
+		ipcMain.off(channel as string, handler)
 	}
 }
 
@@ -66,9 +60,10 @@ function callRendererFn<T extends keyof MainToRendererIPC>(
 		const responseChannel = `${channel}-${Date.now()}-${Math.random()}`
 
 		const handler = (
-			event: IpcMainEvent,
+			event: Electron.IpcMainEvent,
 			result: { data: any; error: any }
 		) => {
+			if (event.sender !== browserWindow.webContents) return;
 			ipcMain.off(responseChannel, handler)
 			if (result.error) {
 				reject(deserializeError(result.error))

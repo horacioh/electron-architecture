@@ -1,14 +1,22 @@
 // This file is required by the index.html file and will
 // be executed in the renderer process for that window.
-// No Node.js APIs are available in this process unless
-// nodeIntegration is set to true in webPreferences.
-// Use preload.js to selectively enable features
-// needed in the renderer process.
+// No Node.js APIs are available in this process because
+// nodeIntegration is set to false in webPreferences.
+// Use the exposed electron API via the preload script.
 
 import { DisplayWindowRectPlugin } from "./plugins/DisplayWindowRectPlugin"
 import { SyncWindowRectPlugin } from "./plugins/SyncWindowRectPlugin"
 import { RendererApp } from "./RendererApp"
-import { callMain } from "./RendererIPC"
+
+// Define the window interface to access the electronAPI
+declare global {
+	interface Window {
+		electronAPI: {
+			callMain: <T extends string>(channel: T, ...args: any[]) => Promise<any>;
+			answerMain: <T extends string>(channel: T, callback: (...args: any[]) => any) => () => void;
+		}
+	}
+}
 
 async function setupTestHarness(app: RendererApp) {
 	const { connectRendererToTestHarness } = await import("../test/TestHarness")
@@ -34,7 +42,7 @@ async function setupTestHarness(app: RendererApp) {
 }
 
 async function main() {
-	const { test, rect } = await callMain.load()
+	const { test, rect } = await window.electronAPI.callMain('load');
 
 	const app = new RendererApp({ rect }, [
 		SyncWindowRectPlugin,
